@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>SyncParty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+
+:root{
+  --void:#05050D;
+  --surface:#131226;
+  --surface-raised:#1B1A34;
+  --line: rgba(233,238,255,0.10);
+  --text:#EEF1FF;
+  --text-dim: rgba(238,241,255,0.54);
+  --flash:#FFB741;
+  --flash-dim: rgba(255,183,65,0.35);
+  --bass:#2FE6FF;
+  --bass-dim: rgba(47,230,255,0.35);
+  --nova:#B84BFF;
+  --nova-dim: rgba(184,75,255,0.35);
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  margin:0; padding:0; min-height:100%;
+  background:var(--void); color:var(--text);
+  font-family:'Inter', sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+}
+
+.grain{
+  position:fixed; inset:0; pointer-events:none; z-index:50;
+  opacity:0.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.starfield{
+  position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;
+}
+.starfield span{
+  position:absolute; width:2px; height:2px; border-radius:50%;
+  background:var(--text); opacity:0.5;
+  animation:twinkle 3.4s ease-in-out infinite;
+}
+@keyframes twinkle{
+  0%,100%{ opacity:0.15; transform:scale(1); }
+  50%{ opacity:0.9; transform:scale(1.6); }
+}
+
+.screen{ display:none; min-height:100vh; }
+.screen.active{ display:flex; }
+
+#landingScreen.active,
+#createNameScreen.active,
+#joinScreen.active,
+#joinNameScreen.active{
+  flex-direction:column; align-items:center; justify-content:center;
+  padding:24px; position:relative;
+}
+
+.back{
+  position:absolute; top:20px; left:20px; z-index:5;
+  width:42px; height:42px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--line); color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:1.2rem;
+}
+
+.pulse-field{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.ring{ position:absolute; border-radius:50%; border:1px solid var(--flash-dim); animation:ripple 2.4s cubic-bezier(.2,.7,.3,1) infinite; opacity:0; }
+.ring.violet{ border-color:var(--bass-dim); animation-delay:1.2s; }
+.ring:nth-child(2){ animation-delay:0.6s; }
+@keyframes ripple{
+  0%{ width:110px; height:110px; opacity:0.9; }
+  100%{ width:900px; height:900px; opacity:0; }
+}
+
+.spaceFigures{ position:absolute; inset:0; pointer-events:none; z-index:1; overflow:hidden; perspective:600px; }
+.spacer{
+  position:absolute; font-size:2.5rem; line-height:1;
+  filter:drop-shadow(0 0 14px var(--flash-dim));
+  animation:bounceLaunch 8s cubic-bezier(.33,1,.68,1) infinite;
+  transform-style:preserve-3d;
+}
+.spacer1{ left:9%; bottom:10%; animation-duration:8.6s; animation-delay:0.3s; }
+.spacer2{ right:11%; bottom:16%; animation-duration:7.4s; animation-delay:2.1s; filter:drop-shadow(0 0 14px var(--bass-dim)); }
+.spacer3{ left:48%; bottom:5%; animation-duration:9.6s; animation-delay:4.2s; filter:drop-shadow(0 0 14px var(--nova-dim)); }
+
+.spin3d{ display:inline-block; animation:spin3d 2.2s linear infinite; }
+@keyframes spin3d{ from{ transform:rotateY(0deg);} to{ transform:rotateY(360deg);} }
+
+@keyframes bounceLaunch{
+  0%{   transform:translateY(0) rotate(0deg) scale(1); opacity:1; }
+  8%{   transform:translateY(-26px) rotate(-6deg); }
+  16%{  transform:translateY(0) rotate(0deg); }
+  24%{  transform:translateY(-50px) rotate(6deg); }
+  32%{  transform:translateY(0); }
+  42%{  transform:translateY(-84px) rotate(-8deg) scale(1.06); }
+  50%{  transform:translateY(0) scale(1); }
+  58%{  transform:translateY(-14px) scale(0.9); }
+  78%{  transform:translateY(-150vh) rotate(24deg) scale(0.4); opacity:0.85; }
+  92%{  opacity:0; }
+  100%{ transform:translateY(-150vh) scale(0.4); opacity:0; }
+}
+
+@media (max-width:640px){
+  .spacer{ font-size:1.9rem; }
+}
+
+.landing-core{ position:relative; z-index:2; text-align:center; animation:popIn 0.85s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes rise{ from{ opacity:0; transform:translateY(18px);} to{ opacity:1; transform:translateY(0);} }
+@keyframes popIn{
+  0%{ opacity:0; transform:translateY(26px) scale(0.72); }
+  60%{ opacity:1; transform:translateY(-6px) scale(1.05); }
+  100%{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+.wordmark{
+  font-family:'Space Grotesk', sans-serif; font-weight:700;
+  font-size:clamp(2.6rem, 9vw, 4.6rem); letter-spacing:-0.02em; line-height:0.95; margin:0;
+  background:linear-gradient(100deg, var(--text) 40%, var(--flash) 70%, var(--bass) 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.tagline{ margin:14px 0 44px; color:var(--text-dim); font-size:1rem; }
+
+.actions{ display:flex; flex-direction:column; gap:12px; width:min(340px, 84vw); }
+
+.btn{
+  appearance:none; border:none; cursor:pointer; font-family:'Inter', sans-serif;
+  font-weight:600; font-size:1.02rem; padding:17px 22px; border-radius:14px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.btn:active{ transform:scale(0.97); }
+.btn:disabled{ opacity:0.4; cursor:not-allowed; }
+.btn-primary{ background:var(--flash); color:#1a0008; }
+.btn-primary:hover:not(:disabled){ box-shadow:0 6px 30px -6px var(--flash-dim); }
+.btn-secondary{ background:transparent; color:var(--text); border:1.5px solid var(--line); }
+.btn-secondary:hover{ border-color:var(--bass); background:rgba(47,230,255,0.07); }
+
+.panel{ width:min(380px, 88vw); animation:rise 0.5s cubic-bezier(.16,1,.3,1) both; }
+.panel h2{ font-family:'Space Grotesk', sans-serif; font-size:1.7rem; margin:0 0 6px; letter-spacing:-0.01em; }
+.panel p.sub{ color:var(--text-dim); margin:0 0 26px; font-size:0.94rem; }
+
+.field{ margin-bottom:16px; text-align:left; }
+.field label{ display:block; font-size:0.82rem; color:var(--text-dim); margin-bottom:6px; }
+.field input{
+  width:100%; background:var(--surface); border:1.5px solid var(--line); border-radius:12px;
+  padding:14px 16px; font-size:1rem; color:var(--text); font-family:'Inter', sans-serif; outline:none;
+  transition:border-color 0.15s ease;
+}
+.field input:focus{ border-color:var(--flash); }
+.field input::placeholder{ color:rgba(245,240,234,0.3); }
+
+.segmented{ display:flex; border:1.5px solid var(--line); border-radius:12px; overflow:hidden; }
+.seg-btn{
+  flex:1; padding:13px 10px; background:var(--surface); border:none; color:var(--text-dim);
+  font-family:'Inter', sans-serif; font-weight:600; font-size:0.9rem; cursor:pointer;
+}
+.seg-btn.selected{ background:var(--flash); color:#1a0008; }
+.seg-btn:not(.selected):hover{ background:var(--surface-raised); }
+
+#songModeBadge{
+  display:inline-block; margin:0 0 16px; padding:6px 14px; border-radius:20px;
+  background:var(--surface-raised); border:1px solid var(--line);
+  color:var(--text-dim); font-size:0.8rem;
+}
+
+.code-input-row{ display:flex; gap:8px; margin-bottom:22px; justify-content:center; }
+.code-digit{
+  width:52px; height:64px; background:var(--surface); border:1.5px solid var(--line); border-radius:12px;
+  text-align:center; font-family:'Space Grotesk', sans-serif; font-size:1.5rem; font-weight:700;
+  color:var(--text); outline:none; transition:border-color 0.15s ease; text-transform:uppercase;
+}
+.code-digit:focus{ border-color:var(--flash); }
+.code-digit.popped{ animation:digitPop 0.32s cubic-bezier(.2,1.8,.4,1) both; border-color:var(--flash); }
+@keyframes digitPop{
+  0%{ transform:scale(1) rotateX(0deg); }
+  40%{ transform:scale(1.28) rotateX(18deg); box-shadow:0 8px 20px -6px var(--flash-dim); }
+  100%{ transform:scale(1) rotateX(0deg); }
+}
+
+#joinError{ color:var(--flash); font-size:0.86rem; min-height:1.2em; margin-top:4px; }
+
+#partyScreen.active{ flex-direction:column; }
+
+#partyTopBar{
+  display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+  padding:18px 22px; border-bottom:1px solid var(--line);
+  background:rgba(20,19,24,0.6); backdrop-filter:blur(8px);
+  position:sticky; top:0; z-index:10;
+}
+#partyTopBar .topLeft{ justify-self:start; }
+#partyTopBar .topBtns{ justify-self:end; display:flex; gap:8px; }
+
+#leaveBtn{
+  font-size:0.85rem; font-weight:600; border-radius:20px; padding:9px 16px;
+  background:var(--surface); border:1px solid var(--line); color:var(--text); cursor:pointer;
+  display:flex; align-items:center; gap:6px;
+}
+#leaveBtn:hover{ border-color:var(--flash); color:var(--flash); }
+
+#partyNameHeading{
+  font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:1.5rem;
+  margin:0; letter-spacing:-0.01em; justify-self:center; text-align:center;
+  grid-column:2;
+}
+#infoBtn, #chatBtn{
+  font-size:1.2rem; border-radius:50%; width:42px; height:42px; padding:0;
+  background:var(--surface); border:1px solid var(--line); color:var(--text); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+#infoBtn:hover, #chatBtn:hover{ border-color:var(--bass); }
+
+#partyBody{ display:flex; flex:1; }
+#mainArea{ flex:1; padding:36px 24px; display:flex; flex-direction:column; align-items:center; }
+
+#sidebar{
+  width:220px; border-left:1px solid var(--line); padding:22px 18px;
+  background:var(--surface); flex-shrink:0; display:flex; flex-direction:column; align-items:center;
+}
+#sidebar h3{ font-family:'Space Grotesk', sans-serif; font-size:0.95rem; margin:0 0 14px; color:var(--text-dim); font-weight:500; align-self:flex-start; }
+
+.scrollArrow{
+  cursor:pointer; font-size:0.8rem; padding:5px; color:var(--text-dim);
+  background:var(--surface-raised); border-radius:8px; width:100%; text-align:center;
+  margin:4px 0; user-select:none; border:1px solid var(--line);
+}
+.scrollArrow:hover{ color:var(--text); border-color:var(--bass); }
+
+#memberList{
+  list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;
+  width:100%; max-height:180px; overflow-y:auto; scrollbar-width:thin;
+}
+#memberList li{
+  padding:8px 10px; font-size:0.9rem; border-radius:9px; background:var(--surface-raised);
+  display:flex; align-items:center; gap:8px; flex-shrink:0;
+}
+#memberList li::before{
+  content:''; width:7px; height:7px; border-radius:50%; background:var(--flash);
+  box-shadow:0 0 6px var(--flash); flex-shrink:0;
+}
+
+#songPicker{ width:100%; max-width:420px; text-align:center; }
+#songPicker > p{ color:var(--text-dim); margin-bottom:16px; font-size:0.95rem; }
+#songPicker select{
+  width:100%; max-width:280px; background:var(--surface); border:1.5px solid var(--line);
+  border-radius:12px; padding:14px 16px; font-size:1rem; color:var(--text);
+  font-family:'Inter', sans-serif; outline:none; cursor:pointer;
+}
+#songPicker select:focus{ border-color:var(--flash); }
+
+#selectedSongLabel{ color:var(--text-dim); font-size:0.88rem; margin-top:14px; min-height:1.2em; }
+
+.partyBtn{
+  margin-top:26px; margin-right:10px; padding:16px 40px; border-radius:14px; border:none; cursor:pointer;
+  font-family:'Inter', sans-serif; font-weight:600; font-size:1rem;
+  background:var(--flash); color:#1a0008; transition:opacity 0.15s ease, box-shadow 0.15s ease;
+}
+.partyBtn:disabled{ opacity:0.35; cursor:not-allowed; }
+.partyBtn:not(:disabled):hover{ box-shadow:0 6px 30px -6px var(--flash-dim); }
+.partyBtn.secondary{ background:transparent; border:1.5px solid var(--line); color:var(--text); }
+.partyBtn.secondary:hover{ border-color:var(--bass); }
+
+#queueControls{ margin-top:10px; text-align:center; }
+#queueList{ margin-top:14px; color:var(--text-dim); font-size:0.85rem; max-width:320px; }
+#queueList b{ color:var(--text); }
+#queueList .queueItem{ padding:3px 0; }
+
+#countdown{
+  font-family:'Space Grotesk', sans-serif; font-size:4rem; font-weight:700; margin-top:26px;
+  min-height:1.2em; color:var(--text);
+}
+
+#stage{
+  display:none; position:relative; width:100%; max-width:520px; height:280px;
+  align-items:flex-end; justify-content:center; gap:8vw; margin-top:10px; overflow:hidden;
+}
+#stage.live{ display:flex; }
+.stage-glow{
+  position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 100%, rgba(47,230,255,0.22), transparent 70%);
+  animation:glow-breathe 1.8s ease-in-out infinite;
+}
+@keyframes glow-breathe{ 0%,100%{opacity:0.6;} 50%{opacity:1;} }
+.dancer{ position:relative; width:110px; height:230px; filter:drop-shadow(0 0 20px rgba(255,183,65,0.3)); }
+.dancer svg{ width:100%; height:100%; display:block; }
+.dancer.left{ animation:sway-left 0.72s ease-in-out infinite; transform-origin:bottom center; }
+.dancer.right{ animation:sway-right 0.72s ease-in-out infinite; animation-delay:0.18s; transform-origin:bottom center; }
+@keyframes sway-left{ 0%,100%{transform:rotate(-6deg) translateY(0);} 50%{transform:rotate(5deg) translateY(-14px);} }
+@keyframes sway-right{ 0%,100%{transform:rotate(6deg) translateY(0);} 50%{transform:rotate(-5deg) translateY(-14px);} }
+
+#infoModal, #chatModal{
+  display:none; position:fixed; inset:0; z-index:100;
+  background:rgba(5,5,6,0.75); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center; padding:24px;
+}
+#infoModal.active, #chatModal.active{ display:flex; }
+#infoModalContent{
+  background:var(--surface); border:1px solid var(--line); border-radius:18px;
+  padding:30px 26px; text-align:center; width:min(320px, 88vw);
+  animation:rise 0.3s cubic-bezier(.16,1,.3,1) both;
+}
+#infoModalContent p{ color:var(--text-dim); margin:0 0 6px; font-size:0.85rem; }
+#modalRoomCode{
+  font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:2.2rem;
+  letter-spacing:0.1em; margin:6px 0 18px; color:var(--flash);
+}
+#modalQrDiv{
+  display:flex; justify-content:center; padding:14px; background:#fff; border-radius:12px;
+  width:fit-content; margin:0 auto 18px;
+}
+#closeModalBtn, #closeChatBtn{
+  padding:11px 26px; border-radius:10px; border:1.5px solid var(--line); background:transparent;
+  color:var(--text); cursor:pointer; font-family:'Inter', sans-serif; font-weight:600; font-size:0.9rem;
+}
+#closeModalBtn:hover, #closeChatBtn:hover{ border-color:var(--bass); }
+
+#chatModalContent{
+  background:var(--surface); border:1px solid var(--line); border-radius:18px;
+  width:min(360px, 90vw); height:min(520px, 80vh);
+  display:flex; flex-direction:column; overflow:hidden;
+  animation:rise 0.3s cubic-bezier(.16,1,.3,1) both;
+}
+#chatHeader{
+  padding:16px 18px; border-bottom:1px solid var(--line); display:flex;
+  justify-content:space-between; align-items:center;
+}
+#chatHeader b{ font-family:'Space Grotesk', sans-serif; font-size:1.05rem; }
+#closeChatBtn{ padding:6px 12px; font-size:0.8rem; }
+#chatMessages{ flex:1; overflow-y:auto; padding:14px; text-align:left; }
+.chatMsg{ margin-bottom:14px; }
+.chatMsg b{ display:block; font-size:0.75rem; color:var(--flash); margin-bottom:2px; font-weight:600; }
+.chatMsg .txt{ font-size:0.92rem; color:var(--text); }
+.chatMsg img{ max-width:100%; border-radius:10px; margin-top:6px; display:block; }
+#chatInputRow{ display:flex; align-items:center; padding:10px; border-top:1px solid var(--line); gap:6px; }
+#chatTextInput{
+  flex:1; background:var(--surface-raised); border:1.5px solid var(--line); border-radius:10px;
+  padding:10px 12px; font-size:0.9rem; color:var(--text); outline:none; font-family:'Inter', sans-serif;
+}
+#chatTextInput:focus{ border-color:var(--flash); }
+#chatSendBtn, #chatImageBtn{
+  background:var(--surface-raised); border:1.5px solid var(--line); border-radius:10px;
+  color:var(--text); cursor:pointer; font-size:0.95rem; padding:9px 12px;
+}
+#chatSendBtn:hover, #chatImageBtn:hover{ border-color:var(--bass); }
+
+#toastContainer{
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center;
+  pointer-events:none;
+}
+.toast{
+  background:var(--surface-raised); color:var(--text); border:1px solid var(--line);
+  padding:10px 20px; border-radius:20px; font-size:0.85rem;
+  animation:toastIn 0.25s cubic-bezier(.16,1,.3,1) both;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+@keyframes toastIn{ from{ opacity:0; transform:translateY(-10px);} to{ opacity:1; transform:translateY(0);} }
+
+@media (max-width: 640px){
+  #partyBody{ flex-direction:column; }
+  #sidebar{ width:100%; border-left:none; border-top:1px solid var(--line); }
+}
+
+::selection{ background:var(--flash-dim); }
+
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="starfield" id="starfield"></div>
+<div id="toastContainer"></div>
+
+<h1 id="mainTitle" style="display:none;"></h1>
+
+<div id="landingScreen" class="screen active">
+  <div class="pulse-field">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring violet"></div>
+  </div>
+  <div class="spaceFigures">
+    <div class="spacer spacer1"><span class="spin3d">🪩</span></div>
+    <div class="spacer spacer2">🚀</div>
+    <div class="spacer spacer3">🛸</div>
+  </div>
+  <div class="landing-core">
+    <h1 class="wordmark">SyncParty</h1>
+    <p class="tagline">Every phone, one beat, one light show.</p>
+    <div class="actions">
+      <button class="btn btn-primary" id="createBtn">Create a Party</button>
+      <button class="btn btn-secondary" id="joinBtn">Join a Party</button>
+    </div>
+  </div>
+</div>
+
+<div id="createNameScreen" class="screen">
+  <div class="back" data-goto="landingScreen">←</div>
+  <div class="panel">
+    <h2>Start your party</h2>
+    <p class="sub">Give it a name, then you'll get a code guests can join with.</p>
+    <div class="field">
+      <label for="partyNameInput">Party name</label>
+      <input id="partyNameInput" placeholder="e.g. Friday Night" maxlength="30">
+    </div>
+    <div class="field">
+      <label for="hostNameInput">Your name</label>
+      <input id="hostNameInput" placeholder="Your name" maxlength="20">
+    </div>
+    <div class="field">
+      <label>Who can choose the song?</label>
+      <div class="segmented" id="songModeToggle">
+        <button type="button" class="seg-btn selected" data-mode="host">Only me</button>
+        <button type="button" class="seg-btn" data-mode="everyone">Everyone</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="createSubmitBtn" style="width:100%;">Create</button>
+  </div>
+</div>
+
+<div id="joinScreen" class="screen">
+  <div class="back" data-goto="landingScreen">←</div>
+  <div class="panel" style="text-align:center;">
+    <h2>Join a party</h2>
+    <p class="sub">Enter the code the host gave you.</p>
+    <div class="code-input-row" id="code-input-row">
+      <input class="code-digit" maxlength="1" data-idx="0">
+      <input class="code-digit" maxlength="1" data-idx="1">
+      <input class="code-digit" maxlength="1" data-idx="2">
+      <input class="code-digit" maxlength="1" data-idx="3">
+      <input class="code-digit" maxlength="1" data-idx="4">
+    </div>
+    <input id="codeInput" type="hidden">
+    <button class="btn btn-primary" id="submitCodeBtn" style="width:100%;">Next</button>
+    <p id="joinError"></p>
+  </div>
+</div>
+
+<div id="joinNameScreen" class="screen">
+  <div class="back" data-goto="joinScreen">←</div>
+  <div class="panel" style="text-align:center;">
+    <h2>Almost in</h2>
+    <p class="sub">What should we call you on the guest list?</p>
+    <div class="field">
+      <input id="guestNameInput" placeholder="Your name" maxlength="20">
+    </div>
+    <button class="btn btn-primary" id="joinSubmitBtn" style="width:100%;">Join</button>
+  </div>
+</div>
+
+<div id="partyScreen" class="screen">
+  <div id="partyTopBar">
+    <div class="topLeft">
+      <button id="leaveBtn">← Leave</button>
+    </div>
+    <h1 id="partyNameHeading"></h1>
+    <div class="topBtns">
+      <button id="chatBtn">💬</button>
+      <button id="infoBtn">ⓘ</button>
+    </div>
+  </div>
+  <div id="partyBody">
+    <div id="mainArea">
+      <div id="songPicker">
+        <div id="songModeBadge"></div>
+        <p>Choose a song</p>
+        <select id="songSelect">
+          <option value="" disabled selected>Select a track…</option>
+          <option value="songs/song1.mp3">Story of My Life</option>
+          <option value="songs/song2.mp3">On the Floor</option>
+          <option value="songs/song3.mp3">Gallan Goodiyaan</option>
+        </select>
+      </div>
+      <div id="selectedSongLabel"></div>
+      <button id="startBtn" class="partyBtn" disabled style="display:none;">Syncing…</button>
+      <button id="pauseResumeBtn" class="partyBtn secondary" style="display:none;">Pause</button>
+      <div id="queueControls" style="display:none;">
+        <button id="addQueueBtn" class="partyBtn secondary">Add to Queue</button>
+        <div id="queueList">Queue is empty</div>
+      </div>
+      <div id="countdown"></div>
+      <div id="stage">
+        <div class="stage-glow"></div>
+        <div class="dancer left">
+          <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="34" r="22" fill="#0A0A0C"/>
+            <path d="M25 24 a25 25 0 0 1 50 0 v6 h-8 a17 17 0 0 0 -34 0 h-8 z" fill="#0A0A0C"/>
+            <rect x="20" y="20" width="10" height="22" rx="5" fill="#0A0A0C"/>
+            <rect x="70" y="20" width="10" height="22" rx="5" fill="#0A0A0C"/>
+            <path d="M40 55 Q50 66 60 55 L66 70 Q50 82 34 70 Z" fill="#0A0A0C"/>
+            <path d="M38 68 L28 130 L44 210 L54 210 L46 132 L60 130 L74 208 L84 206 L68 120 L60 66 Z" fill="#0A0A0C"/>
+            <path d="M40 72 L14 108 L22 118 L48 90 Z" fill="#0A0A0C"/>
+            <path d="M62 72 L92 100 L84 112 L56 90 Z" fill="#0A0A0C"/>
+          </svg>
+        </div>
+        <div class="dancer right">
+          <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="34" r="22" fill="#0A0A0C"/>
+            <path d="M25 24 a25 25 0 0 1 50 0 v6 h-8 a17 17 0 0 0 -34 0 h-8 z" fill="#0A0A0C"/>
+            <rect x="20" y="20" width="10" height="22" rx="5" fill="#0A0A0C"/>
+            <rect x="70" y="20" width="10" height="22" rx="5" fill="#0A0A0C"/>
+            <path d="M40 55 Q50 68 60 55 L64 72 Q50 86 36 72 Z" fill="#0A0A0C"/>
+            <path d="M36 70 L44 130 L34 208 L46 210 L58 134 L54 130 L70 206 L82 202 L66 118 L64 68 Z" fill="#0A0A0C"/>
+            <path d="M38 74 L60 44 L70 54 L48 84 Z" fill="#0A0A0C"/>
+            <path d="M62 74 L86 118 L76 126 L54 88 Z" fill="#0A0A0C"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div id="sidebar">
+      <h3>Members</h3>
+      <div class="scrollArrow" id="scrollUpBtn">▲</div>
+      <ul id="memberList"></ul>
+      <div class="scrollArrow" id="scrollDownBtn">▼</div>
+    </div>
+  </div>
+</div>
+
+<div id="infoModal">
+  <div id="infoModalContent">
+    <p>Room code</p>
+    <div id="modalRoomCode"></div>
+    <div id="modalQrDiv"></div>
+    <button id="closeModalBtn">Close</button>
+  </div>
+</div>
+
+<div id="chatModal">
+  <div id="chatModalContent">
+    <div id="chatHeader">
+      <b>Chat</b>
+      <button id="closeChatBtn">Close</button>
+    </div>
+    <div id="chatMessages"></div>
+    <div id="chatInputRow">
+      <input type="file" id="chatImageInput" accept="image/*" style="display:none;">
+      <button id="chatImageBtn">📷</button>
+      <input id="chatTextInput" placeholder="Type a message...">
+      <button id="chatSendBtn">➤</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let offset = 0;
+  let bestRtt = Infinity;
+  let syncCount = 0;
+  let syncTimer = null;
+  let isHost = false;
+  let myRoomCode = null;
+  let mySelectedSong = null;
+  let mySongMode = 'host';
+  let serverIp = 'localhost';
+  let partyStarted = false;
+  let isPaused = false;
+  let currentSource = null;
+  let suppressEndedEvent = false;
+
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  let audioBuffer = null;
+
+  function loadSong(path) {
+    audioBuffer = null;
+    fetch('/' + path)
+      .then(res => res.arrayBuffer())
+      .then(data => audioContext.decodeAudioData(data))
+      .then(buffer => { audioBuffer = buffer; console.log('Song loaded:', path); })
+      .catch(err => console.error('Failed to load song:', err));
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function initStarfield(count) {
+    const field = document.getElementById('starfield');
+    if (!field) return;
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = Math.random() * 100 + '%';
+      s.style.animationDelay = (Math.random() * 3.4).toFixed(2) + 's';
+      const size = (Math.random() * 1.6 + 1).toFixed(1) + 'px';
+      s.style.width = size;
+      s.style.height = size;
+      field.appendChild(s);
+    }
+  }
+
+  function burstOnEntry() {
+    const colors = ['var(--flash)', 'var(--bass)', 'var(--nova)', '#ffffff'];
+    const originX = window.innerWidth / 2;
+    const originY = window.innerHeight * 0.4;
+    for (let i = 0; i < 26; i++) {
+      const p = document.createElement('div');
+      p.style.position = 'fixed';
+      p.style.left = originX + 'px';
+      p.style.top = originY + 'px';
+      p.style.width = '6px';
+      p.style.height = '6px';
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      p.style.background = colors[i % colors.length];
+      p.style.zIndex = '3';
+      p.style.pointerEvents = 'none';
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 110 + Math.random() * 190;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      document.body.appendChild(p);
+      p.animate(
+        [
+          { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+          { transform: `translate(${dx - 3}px, ${dy - 3}px) scale(0.3)`, opacity: 0 }
+        ],
+        { duration: 850 + Math.random() * 400, easing: 'cubic-bezier(.2,.8,.3,1)' }
+      );
+      setTimeout(() => p.remove(), 1400);
+    }
+  }
+
+  initStarfield(55);
+  burstOnEntry();
+
+  function showToast(text) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = text;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  socket.on('server-info', ({ ip }) => { serverIp = ip; });
+
+  document.querySelectorAll('.back').forEach(el => {
+    el.addEventListener('click', () => showScreen(el.dataset.goto));
+  });
+
+  document.getElementById('createBtn').onclick = () => showScreen('createNameScreen');
+  document.getElementById('joinBtn').onclick = () => showScreen('joinScreen');
+
+  let selectedSongMode = 'host';
+  document.querySelectorAll('#songModeToggle .seg-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#songModeToggle .seg-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedSongMode = btn.dataset.mode;
+    };
+  });
+
+  document.getElementById('createSubmitBtn').onclick = () => {
+    const partyName = document.getElementById('partyNameInput').value.trim() || 'Untitled Party';
+    const userName = document.getElementById('hostNameInput').value.trim() || 'Host';
+    socket.emit('create-room', { partyName, userName, songMode: selectedSongMode });
+  };
+
+  const digitInputs = document.querySelectorAll('.code-digit');
+  function syncHiddenCodeInput() {
+    document.getElementById('codeInput').value =
+      Array.from(digitInputs).map(i => i.value).join('');
+  }
+  digitInputs.forEach((input, i) => {
+    input.addEventListener('input', () => {
+      input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      syncHiddenCodeInput();
+      if (input.value) {
+        input.classList.remove('popped');
+        void input.offsetWidth;
+        input.classList.add('popped');
+      }
+      if (input.value && digitInputs[i + 1]) digitInputs[i + 1].focus();
+    });
+    input.addEventListener('animationend', () => input.classList.remove('popped'));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && digitInputs[i - 1]) digitInputs[i - 1].focus();
+    });
+  });
+
+  let pendingJoinCode = null;
+  document.getElementById('submitCodeBtn').onclick = () => {
+    pendingJoinCode = document.getElementById('codeInput').value.trim().toUpperCase();
+    if (!pendingJoinCode) {
+      document.getElementById('joinError').textContent = 'Enter the full code.';
+      return;
+    }
+    document.getElementById('joinError').textContent = '';
+    showScreen('joinNameScreen');
+  };
+
+  document.getElementById('joinSubmitBtn').onclick = () => {
+    const userName = document.getElementById('guestNameInput').value.trim() || 'Guest';
+    socket.emit('join-room', { code: pendingJoinCode, userName });
+  };
+
+  socket.on('room-created', ({ code, partyName, songMode }) => {
+    isHost = true;
+    myRoomCode = code;
+    mySongMode = songMode || 'host';
+    enterPartyScreen(partyName);
+  });
+
+  socket.on('room-joined', ({ success, code, partyName, songMode }) => {
+    if (!success) {
+      document.getElementById('joinError').textContent = 'Room not found. Check the code.';
+      showScreen('joinScreen');
+      return;
+    }
+    isHost = false;
+    myRoomCode = code;
+    mySongMode = songMode || 'host';
+    enterPartyScreen(partyName);
+  });
+
+  socket.on('member-joined', ({ name }) => {
+    showToast(name + ' just joined');
+  });
+
+  socket.on('member-left', ({ name }) => {
+    showToast(name + ' left');
+  });
+
+  socket.on('member-list', ({ members }) => {
+    const list = document.getElementById('memberList');
+    list.innerHTML = '';
+    members.forEach(name => {
+      const li = document.createElement('li');
+      li.textContent = name;
+      list.appendChild(li);
+    });
+  });
+
+  socket.on('song-selected', ({ song }) => {
+    mySelectedSong = song;
+    loadSong(song);
+    const select = document.getElementById('songSelect');
+    if (select) select.value = song;
+    document.getElementById('selectedSongLabel').textContent = 'Selected: ' + song;
+  });
+
+  socket.on('start-error', ({ message }) => {
+    alert(message);
+  });
+
+  function songNameFromPath(path) {
+    const opt = Array.from(document.getElementById('songSelect').options).find(o => o.value === path);
+    return opt ? opt.textContent : path;
+  }
+
+  function updatePartyStartedUI() {
+    const startBtn = document.getElementById('startBtn');
+    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
+    const queueControls = document.getElementById('queueControls');
+    const canPick = isHost || mySongMode === 'everyone';
+
+    if (partyStarted) {
+      startBtn.style.display = 'none';
+      pauseResumeBtn.style.display = isHost ? 'inline-block' : 'none';
+      queueControls.style.display = canPick ? 'block' : 'none';
+    } else {
+      startBtn.style.display = isHost ? 'inline-block' : 'none';
+      pauseResumeBtn.style.display = 'none';
+      queueControls.style.display = 'none';
+    }
+  }
+
+  function updatePauseButtonLabel() {
+    document.getElementById('pauseResumeBtn').textContent = isPaused ? 'Resume' : 'Pause';
+  }
+
+  function enterPartyScreen(partyName) {
+    audioContext.resume();
+    document.getElementById('partyNameHeading').textContent = partyName;
+
+    const songPicker = document.getElementById('songPicker');
+    const songSelect = document.getElementById('songSelect');
+    const songLabelP = songPicker.querySelector('p');
+    const badge = document.getElementById('songModeBadge');
+
+    badge.textContent = mySongMode === 'everyone'
+      ? '🎵 Everyone can pick the song'
+      : '🎵 Only the host picks the song';
+
+    const canPick = isHost || mySongMode === 'everyone';
+
+    songPicker.style.display = 'block';
+    songSelect.style.display = canPick ? 'block' : 'none';
+    songLabelP.style.display = canPick ? 'block' : 'none';
+
+    updatePartyStartedUI();
+    updatePauseButtonLabel();
+
+    showScreen('partyScreen');
+    runSync(10);
+  }
+
+  document.getElementById('songSelect').addEventListener('change', (e) => {
+    const canPick = isHost || mySongMode === 'everyone';
+    if (!canPick) return;
+    if (!e.target.value) return;
+    if (!partyStarted) {
+      socket.emit('select-song', e.target.value);
+    }
+    // once the party has started, picking a track just stages it —
+    // it only gets queued when "Add to Queue" is clicked
+  });
+
+  document.getElementById('addQueueBtn').onclick = () => {
+    const canPick = isHost || mySongMode === 'everyone';
+    if (!canPick) return;
+    const song = document.getElementById('songSelect').value;
+    if (!song) {
+      showToast('Pick a song from the list first');
+      return;
+    }
+    socket.emit('add-to-queue', song);
+    showToast('Added to queue');
+  };
+
+  document.getElementById('pauseResumeBtn').onclick = () => {
+    if (!isHost) return;
+    if (isPaused) {
+      socket.emit('resume-party');
+    } else {
+      socket.emit('pause-party');
+    }
+  };
+
+  document.getElementById('startBtn').onclick = () => {
+    socket.emit('start-party');
+    console.log('Sent start-party request');
+  };
+
+  document.getElementById('leaveBtn').onclick = () => {
+    socket.disconnect();
+    location.reload();
+  };
+
+  document.getElementById('scrollUpBtn').onclick = () => {
+    document.getElementById('memberList').scrollBy({ top: -60, behavior: 'smooth' });
+  };
+  document.getElementById('scrollDownBtn').onclick = () => {
+    document.getElementById('memberList').scrollBy({ top: 60, behavior: 'smooth' });
+  };
+
+  document.getElementById('infoBtn').onclick = () => {
+    document.getElementById('modalRoomCode').textContent = myRoomCode;
+    document.getElementById('modalQrDiv').innerHTML = '';
+    const joinUrl = `http://${serverIp}:3000/?room=${myRoomCode}`;
+    new QRCode(document.getElementById('modalQrDiv'), {
+      text: joinUrl, width: 168, height: 168,
+      colorDark: '#050506', colorLight: '#ffffff'
+    });
+    document.getElementById('infoModal').classList.add('active');
+  };
+  document.getElementById('closeModalBtn').onclick = () => {
+    document.getElementById('infoModal').classList.remove('active');
+  };
+
+  document.getElementById('chatBtn').onclick = () => {
+    document.getElementById('chatModal').classList.add('active');
+  };
+  document.getElementById('closeChatBtn').onclick = () => {
+    document.getElementById('chatModal').classList.remove('active');
+  };
+
+  function addChatMessage(msg) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chatMsg';
+    const nameEl = document.createElement('b');
+    nameEl.textContent = msg.name;
+    div.appendChild(nameEl);
+    if (msg.type === 'text') {
+      const p = document.createElement('div');
+      p.className = 'txt';
+      p.textContent = msg.content;
+      div.appendChild(p);
+    } else if (msg.type === 'image') {
+      const img = document.createElement('img');
+      img.src = msg.content;
+      div.appendChild(img);
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  socket.on('chat-history', (history) => {
+    document.getElementById('chatMessages').innerHTML = '';
+    history.forEach(addChatMessage);
+  });
+
+  socket.on('chat-message', (msg) => addChatMessage(msg));
+
+  document.getElementById('chatSendBtn').onclick = () => {
+    const input = document.getElementById('chatTextInput');
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit('chat-message', { type: 'text', content: text });
+    input.value = '';
+  };
+  document.getElementById('chatTextInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') document.getElementById('chatSendBtn').click();
+  });
+
+  document.getElementById('chatImageBtn').onclick = () => {
+    document.getElementById('chatImageInput').click();
+  };
+  document.getElementById('chatImageInput').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image too large — please pick one under 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      socket.emit('chat-message', { type: 'image', content: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const params = new URLSearchParams(window.location.search);
+  const roomFromUrl = params.get('room');
+  if (roomFromUrl) {
+    pendingJoinCode = roomFromUrl.toUpperCase();
+    showScreen('joinNameScreen');
+  }
+
+  function runSync(rounds) {
+    syncCount = 0;
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = setInterval(() => {
+      socket.emit('sync-ping', Date.now());
+      syncCount++;
+      if (syncCount >= rounds) {
+        clearInterval(syncTimer);
+        if (isHost && !partyStarted) {
+          const btn = document.getElementById('startBtn');
+          btn.disabled = false;
+          btn.textContent = 'Start Party';
+        }
+        console.log('Sync complete');
+      }
+    }, 250);
+  }
+
+  socket.on('sync-pong', ({ serverTime, clientSentTime }) => {
+    const rtt = Date.now() - clientSentTime;
+    if (rtt < bestRtt) {
+      bestRtt = rtt;
+      offset = serverTime + rtt / 2 - Date.now();
+      console.log('New best offset:', offset.toFixed(1), 'ms (rtt:', rtt, 'ms)');
+    }
+  });
+
+  socket.on('reconnect', (attempt) => {
+    console.log('Reconnected after', attempt, 'attempts — resyncing');
+    bestRtt = Infinity;
+    runSync(10);
+  });
+
+  function stopCurrentSource() {
+    if (currentSource) {
+      suppressEndedEvent = true;
+      try { currentSource.stop(); } catch (e) {}
+      currentSource = null;
+    }
+  }
+
+  function playSynced(startTime) {
+    if (!audioBuffer) {
+      setTimeout(() => playSynced(startTime), 200);
+      return;
+    }
+    stopCurrentSource();
+
+    const myTargetTime = startTime + offset;
+    const countdownEl = document.getElementById('countdown');
+    const stageEl = document.getElementById('stage');
+
+    const tick = () => {
+      const remainingMs = myTargetTime - Date.now();
+      if (remainingMs > 100) {
+        countdownEl.textContent = Math.ceil(remainingMs / 1000);
+        requestAnimationFrame(tick);
+      } else {
+        countdownEl.textContent = '';
+        stageEl.classList.add('live');
+      }
+    };
+    tick();
+
+    const elapsedSeconds = (Date.now() - myTargetTime) / 1000;
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.onended = () => {
+      if (suppressEndedEvent) {
+        suppressEndedEvent = false;
+        return;
+      }
+      if (currentSource === source) currentSource = null;
+      if (isHost) socket.emit('song-ended');
+    };
+    currentSource = source;
+
+    if (elapsedSeconds >= 0) {
+      if (elapsedSeconds >= audioBuffer.duration) {
+        console.log('Song already finished');
+        currentSource = null;
+        if (isHost) socket.emit('song-ended');
+        return;
+      }
+      source.start(audioContext.currentTime, elapsedSeconds);
+      stageEl.classList.add('live');
+      console.log('Joining mid-song at', elapsedSeconds.toFixed(2), 's');
+    } else {
+      const delaySeconds = -elapsedSeconds;
+      source.start(audioContext.currentTime + delaySeconds);
+      console.log('Scheduled in', delaySeconds.toFixed(2), 's');
+    }
+  }
+
+  socket.on('play', ({ startTime }) => {
+    partyStarted = true;
+    isPaused = false;
+    updatePartyStartedUI();
+    updatePauseButtonLabel();
+    playSynced(startTime);
+  });
+
+  socket.on('pause', ({ elapsed }) => {
+    partyStarted = true;
+    isPaused = true;
+    updatePartyStartedUI();
+    updatePauseButtonLabel();
+    stopCurrentSource();
+    document.getElementById('stage').classList.remove('live');
+    document.getElementById('countdown').textContent = '';
+  });
+
+  socket.on('queue-updated', ({ queue }) => {
+    const list = document.getElementById('queueList');
+    if (!queue || queue.length === 0) {
+      list.innerHTML = 'Queue is empty';
+      return;
+    }
+    list.innerHTML = '<b>Up next:</b>' +
+      queue.map((s, i) => `<div class="queueItem">${i + 1}. ${songNameFromPath(s)}</div>`).join('');
+  });
+
+  socket.on('queue-empty', () => {
+    showToast('Queue is empty — add a song to keep the party going');
+    stopCurrentSource();
+    document.getElementById('stage').classList.remove('live');
+  });
+</script>
+</body>
+</html>
